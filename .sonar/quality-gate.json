@@ -1,0 +1,15 @@
+{
+  "name": "Notification System Reference Gate",
+  "projects": [
+    "notification-api",
+    "notification-worker",
+    "notification-frontend"
+  ],
+  "conditions": [
+    { "metric": "coverage", "operator": "LT", "threshold": 80 },
+    { "metric": "duplicated_lines_density", "operator": "GTE", "threshold": 3 },
+    { "metric": "new_blocker_violations", "operator": "GT", "threshold": 0 },
+    { "metric": "new_critical_violations", "operator": "GT", "threshold": 0 }
+  ],
+  "manual_review": "Every security hotspot must be reviewed before the project is treated as passing."
+}

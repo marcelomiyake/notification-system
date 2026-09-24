@@ -1,0 +1,39 @@
+images:
+  api: notification-api:local
+  worker: notification-worker:local
+  frontend: notification-frontend:local
+  pullPolicy: IfNotPresent
+replicas:
+  api: 2
+  worker: 2
+  frontend: 2
+postgres:
+  image: postgres:16-alpine
+  storage: 1Gi
+  database: notification
+  username: notification
+  password: notification
+rabbitmq:
+  image: rabbitmq:4.1-management-alpine
+  storage: 1Gi
+  username: notification
+  password: notification
+api:
+  key: local-dev-api-key
+  simulationEnabled: "true"
+resources:
+  api:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  worker:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  frontend:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+  postgres:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  rabbitmq:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 768Mi }
