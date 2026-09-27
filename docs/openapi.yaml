@@ -1,0 +1,216 @@
+openapi: 3.1.0
+info:
+  title: Notification Management API
+  version: 1.0.0
+  description: Local reference contract; adapter success represents simulated provider acceptance only.
+servers:
+  - url: http://notification-api:8080
+security:
+  - ApiKey: []
+paths:
+  /healthz:
+    get:
+      security: []
+      summary: Process liveness
+      responses:
+        '200': { description: Healthy }
+  /readyz:
+    get:
+      security: []
+      summary: Dependency readiness
+      responses:
+        '200': { description: Ready }
+        '503': { description: Dependency unavailable }
+  /api/v1/notifications:
+    post:
+      summary: Accept or schedule a notification
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationRequest' }
+      responses:
+        '202':
+          description: Durably accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationAccepted' }
+        '400': { description: Invalid request or opted-out recipient }
+        '401': { description: Invalid caller key }
+        '409': { description: Idempotency key reused with a different request }
+        '429': { description: Caller rate limit exceeded }
+    get:
+      summary: List recent notifications
+      parameters:
+        - in: query
+          name: recipient_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+  /api/v1/notifications/{notification_id}:
+    get:
+      summary: Get status and attempts for a notification
+      parameters:
+        - in: path
+          name: notification_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Notification state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        '404': { description: Not found }
+  /api/v1/recipients/{recipient_id}/preferences/{channel}:
+    get:
+      summary: Get a recipient channel preference
+      parameters: [{ $ref: '#/components/parameters/RecipientId' }, { $ref: '#/components/parameters/Channel' }]
+      responses:
+        '200':
+          description: Preference
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preference' }
+        '400': { description: Unsupported channel }
+        '404': { description: Recipient not found }
+    put:
+      summary: Set a recipient channel preference
+      parameters: [{ $ref: '#/components/parameters/RecipientId' }, { $ref: '#/components/parameters/Channel' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [opt_in]
+              properties: { opt_in: { type: boolean } }
+      responses:
+        '200': { description: Updated preference }
+        '404': { description: Recipient not found }
+  /api/v1/templates:
+    get:
+      summary: List latest templates
+      responses:
+        '200': { description: Templates }
+    post:
+      summary: Create a template or immutable new version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateRequest' }
+      responses:
+        '201': { description: Template version created }
+  /api/v1/recipients:
+    get:
+      summary: List synthetic recipients
+      responses:
+        '200': { description: Recipient summaries with masked contacts }
+  /api/v1/recipients/{recipient_id}/devices:
+    post:
+      summary: Register a synthetic recipient device
+      parameters: [{ $ref: '#/components/parameters/RecipientId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, device_token]
+              properties:
+                platform: { type: string, enum: [ios, android] }
+                device_token: { type: string, minLength: 1, maxLength: 512 }
+      responses:
+        '201': { description: Device registered }
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  parameters:
+    RecipientId:
+      in: path
+      name: recipient_id
+      required: true
+      schema: { type: string, format: uuid }
+    Channel:
+      in: path
+      name: channel
+      required: true
+      schema: { $ref: '#/components/schemas/Channel' }
+  schemas:
+    Channel:
+      type: string
+      enum: [ios_push, android_push, sms, email]
+    NotificationRequest:
+      type: object
+      required: [recipient_id, channel]
+      properties:
+        recipient_id: { type: string, format: uuid }
+        channel: { $ref: '#/components/schemas/Channel' }
+        template_id: { type: string, format: uuid }
+        template_version: { type: integer, minimum: 1 }
+        variables: { type: object, additionalProperties: true }
+        subject: { type: string, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 10000 }
+        scheduled_at: { type: string, format: date-time }
+        simulation:
+          type: string
+          enum: [success, transient_failure, permanent_failure]
+          description: Local recording-adapter control; rejected when simulation is disabled.
+    NotificationAccepted:
+      type: object
+      required: [notification_id, status, created_at]
+      properties:
+        notification_id: { type: string, format: uuid }
+        status: { type: string, enum: [accepted, scheduled] }
+        created_at: { type: string, format: date-time }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        recipient_id: { type: string, format: uuid }
+        channel: { $ref: '#/components/schemas/Channel' }
+        status: { type: string }
+        attempts: { type: integer, minimum: 0 }
+        scheduled_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        last_error: { type: string, nullable: true }
+    Preference:
+      type: object
+      required: [recipient_id, channel, opt_in]
+      properties:
+        recipient_id: { type: string, format: uuid }
+        channel: { $ref: '#/components/schemas/Channel' }
+        opt_in: { type: boolean }
+    TemplateRequest:
+      type: object
+      required: [name, channel, subject, body]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, maxLength: 120 }
+        channel: { $ref: '#/components/schemas/Channel' }
+        subject: { type: string, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 10000 }

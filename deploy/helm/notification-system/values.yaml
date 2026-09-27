@@ -1,0 +1,41 @@
+images:
+  api: notification-api:local
+  worker: notification-worker:local
+  frontend: notification-frontend:local
+  pullPolicy: IfNotPresent
+replicas:
+  api: 2
+  worker: 2
+  frontend: 2
+postgres:
+  image: postgres:16-alpine
+  storage: 1Gi
+  database: notification
+  username: notification
+rabbitmq:
+  image: rabbitmq:4.1-management-alpine
+  storage: 1Gi
+  username: notification
+api:
+  simulationEnabled: "true"
+secrets:
+  existingSecret: notification-system-credentials
+  postgresKey: POSTGRES_PASSWORD
+  rabbitmqKey: RABBITMQ_DEFAULT_PASS
+  callerApiKey: CALLER_API_KEY
+resources:
+  api:
+    requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 256Mi }
+  worker:
+    requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi, ephemeral-storage: 256Mi }
+  frontend:
+    requests: { cpu: 25m, memory: 32Mi, ephemeral-storage: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi, ephemeral-storage: 256Mi }
+  postgres:
+    requests: { cpu: 100m, memory: 128Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi, ephemeral-storage: 512Mi }
+  rabbitmq:
+    requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 128Mi }
+    limits: { cpu: 500m, memory: 768Mi, ephemeral-storage: 512Mi }

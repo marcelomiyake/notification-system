@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-frontend
+spec:
+  type: ClusterIP
+  selector: { app: notification-frontend }
+  ports: [{ name: http, port: 80, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-frontend
+spec:
+  replicas: {{ .Values.replicas.frontend }}
+  selector:
+    matchLabels: { app: notification-frontend }
+  template:
+    metadata:
+      labels: { app: notification-frontend }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: frontend
+          image: {{ .Values.images.frontend }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - name: CALLER_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.existingSecret }}, key: {{ .Values.secrets.callerApiKey }} } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: {{ .Values.resources.frontend.requests.cpu | quote }}
+              memory: {{ .Values.resources.frontend.requests.memory | quote }}
+              ephemeral-storage: {{ index .Values.resources.frontend.requests "ephemeral-storage" | quote }}
+            limits:
+              cpu: {{ .Values.resources.frontend.limits.cpu | quote }}
+              memory: {{ .Values.resources.frontend.limits.memory | quote }}
+              ephemeral-storage: {{ index .Values.resources.frontend.limits "ephemeral-storage" | quote }}

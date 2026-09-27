@@ -1,0 +1,85 @@
+name: SonarQube Cloud per-microservice analysis
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-microservices-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: SonarCloud - ${{ matrix.component }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: notification-api
+            service: notification-api
+            project_key: marcelomiyake_notification-system_notification-api
+            coverage_exclusions: "**/src/main.rs"
+          - component: notification-worker
+            service: notification-worker
+            project_key: marcelomiyake_notification-system_notification-worker
+            coverage_exclusions: "**/src/main.rs"
+    env:
+      DATABASE_URL: postgres://notification_test:${{ github.run_id }}@localhost:5432/postgres
+      TEST_AMQP_URL: amqp://notification_test:${{ github.run_id }}@localhost:5672/%2f
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: notification_test
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U notification_test -d postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      rabbitmq:
+        image: rabbitmq:4.1-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: notification_test
+          RABBITMQ_DEFAULT_PASS: ${{ github.run_id }}
+        ports: [5672:5672]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      - name: Install Rust coverage tool
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - name: Install SonarScanner for Cargo
+        run: cargo install cargo-sonar-scanner --version 1.0.0 --locked
+      - name: Generate ${{ matrix.component }} coverage
+        working-directory: ${{ matrix.service }}
+        run: |
+          mkdir -p target/coverage
+          cargo llvm-cov --lcov --output-path target/coverage/lcov.info -- --test-threads=1
+      - name: Analyze ${{ matrix.component }}
+        working-directory: ${{ matrix.service }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PROJECT_KEY: ${{ matrix.project_key }}
+          COVERAGE_EXCLUSIONS: ${{ matrix.coverage_exclusions }}
+        run: |
+          scanner_args=(
+            --sonar-organization marcelomiyake
+            --sonar-project-key "$PROJECT_KEY"
+            -Dsonar.rust.lcov.reportPaths=target/coverage/lcov.info
+          )
+          if [[ -n "$COVERAGE_EXCLUSIONS" ]]; then
+            scanner_args+=("-Dsonar.coverage.exclusions=$COVERAGE_EXCLUSIONS")
+          fi
+          cargo sonar-scanner "${scanner_args[@]}"
