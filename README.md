@@ -25,7 +25,7 @@ The chapter's 10 million push, 1 million SMS, and 5 million email notifications 
 - [`notification-worker/`](notification-worker/README.md) owns scheduling, outbox dispatch, queue consumption, retries, and recorded outcomes.
 - [`notification-frontend/`](notification-frontend/README.md) is the Vue operator console.
 - [`deploy/helm/notification-system/`](deploy/helm/notification-system/README.md) deploys the application and local dependencies to Kind.
-- [`docs/verification/`](docs/verification/) contains test, quality, and Jev evidence.
+- [`docs/verification/`](docs/verification/) contains test, quality, and Jev evidence. [Jev](https://docs.typesafe.ai/introduction/coding-agents) is TypeSafe's model for typed rubric scores; its results here are advisory, not a release gate.
 
 Each application has its own `README.md`, `AGENTS.md`, Dockerfile, and service tests. Root and service guidance describe the development workflow and ownership boundaries.
 
