@@ -1,0 +1,11 @@
+{
+  "policy": "Use a Sonar project for each real component; retain existing aggregate history.",
+  "projects": [
+    {
+      "component": "notification-frontend",
+      "directory": "notification-frontend",
+      "key": "marcelomiyake_notification-system_notification-frontend",
+      "kind": "web"
+    }
+  ]
+}

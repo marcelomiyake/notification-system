@@ -1,0 +1,44 @@
+name: SonarCloud component analysis
+'on':
+  push:
+    branches:
+    - main
+  pull_request: {}
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: sonar-components-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  analyze:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      with:
+        node-version: '24'
+    - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      with:
+        version: 11.19.0
+        package_json_file: notification-frontend/package.json
+    - name: Prepare analysis inputs
+      id: prepare
+      run: |-
+        cd notification-frontend
+        pnpm install --frozen-lockfile
+        pnpm run test:unit
+        cd "$GITHUB_WORKSPACE"
+    - name: Analyze notification-frontend
+      if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+      uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9
+      with:
+        args: -Dproject.settings=.sonar/notification-frontend.properties
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: https://sonarcloud.io
