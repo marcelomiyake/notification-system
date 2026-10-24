@@ -1,0 +1,33 @@
+name: Release
+
+# release-please reads the Conventional Commits merged into main and keeps
+# one release pull request open: it writes the new version to version.txt
+# and adds the release to CHANGELOG.md. Merging that pull request tags
+# vX.Y.Z and publishes the GitHub release. fix:, perf: and revert: are a
+# patch, feat: a minor, and a breaking change (!) a major.
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# One run at a time, so two quick merges cannot race on the release PR.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release pull request, tag and GitHub release
+    runs-on: ubuntu-latest
+    # The write scopes stay on this job, which runs only for pushes to main,
+    # never for pull requests. It checks out and runs none of the code.
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
