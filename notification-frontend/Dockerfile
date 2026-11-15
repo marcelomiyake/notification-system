@@ -1,6 +1,6 @@
 FROM node:26.13.1-alpine AS builder
 WORKDIR /app
-RUN corepack enable
+RUN npm install -g --no-fund --no-audit corepack@0.36.0 && corepack enable
 COPY notification-frontend/package.json notification-frontend/pnpm-lock.yaml notification-frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY notification-frontend/ ./
