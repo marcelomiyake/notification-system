@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:26.13.1-alpine AS builder
 WORKDIR /app
 RUN corepack enable
 COPY notification-frontend/package.json notification-frontend/pnpm-lock.yaml notification-frontend/pnpm-workspace.yaml ./
